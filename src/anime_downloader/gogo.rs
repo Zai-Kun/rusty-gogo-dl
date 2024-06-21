@@ -87,7 +87,7 @@ impl GogoAnime {
 
         loop {
             let page_content = self
-                .get_content(&login_url)
+                .fetch_content(&login_url)
                 .await
                 .change_context(GogoInitError)?;
 
@@ -160,7 +160,7 @@ impl GogoAnime {
         let thumbnail_selector = Selector::parse(thumbnail_selector_str).unwrap();
         let url_selector = Selector::parse(url_selector_str).unwrap();
 
-        let page_content = self.get_content(&search_url).await?;
+        let page_content = self.fetch_content(&search_url).await?;
         let document = Html::parse_document(&page_content);
 
         let ul_items = document.select(&ul_selector).next().ok_or_else(|| {
@@ -231,7 +231,7 @@ impl GogoAnime {
         Ok(search_results)
     }
 
-    async fn get_content(&self, url: &str) -> Result<String, Report<Error>> {
+    async fn fetch_content(&self, url: &str) -> Result<String, Report<Error>> {
         let response = self.client.get(url).send().await?;
 
         Ok(response.text().await?)
@@ -242,7 +242,7 @@ impl GogoAnime {
         anime_url: &str,
     ) -> Result<AnimeDetailedInfo, Report<GogoFetchingDetailsFailed>> {
         let page_content = self
-            .get_content(anime_url)
+            .fetch_content(anime_url)
             .await
             .change_context(GogoFetchingDetailsFailed)?;
         let document = Html::parse_document(&page_content);
@@ -342,7 +342,7 @@ impl GogoAnime {
     async fn fetch_anime_ep_links(&self, anime_id: &str, end_ep: &str) -> Result<Vec<String>, Report<Error>>{
         let url = self.fetch_ep_list_api.replace("{END_EP}", end_ep).replace("{ANIME_ID}", anime_id);
         let page_content = self
-            .get_content(&url)
+            .fetch_content(&url)
             .await?;
         let document = Html::parse_document(&page_content);
         let episodes_selector = Selector::parse("#episode_related").unwrap();
