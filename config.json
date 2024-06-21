@@ -1,6 +1,6 @@
 {
     "gogo_base_url": "https://anitaku.so",
-    "fetch_ep_list_api": "https://ajax.gogocdn.net/ajax/load-list-episode?ep_start=0&ep_end={}&id={}",
+    "fetch_ep_list_api": "https://ajax.gogocdn.net/ajax/load-list-episode?ep_start=0&ep_end={EP_END}&id={ANIME_ID}",
     "registered_account_emails": [
         "benida7218@weirby.com",
         "hareki4411@wisnick.com",

@@ -37,14 +37,16 @@ pub struct AnimeDetailedInfo {
     pub name: String,
     pub thumbnail: String,
     pub about: HashMap<String, String>,
+    pub episode_links: Vec<String>,
 }
 
 impl AnimeDetailedInfo {
-    fn new(name: &str, thumbnail: &str, about: &HashMap<String, String>) -> Self {
+    fn new(name: &str, thumbnail: &str, about: &HashMap<String, String>, episode_links: &Vec<String>) -> Self {
         Self {
             name: name.to_string(),
             thumbnail: thumbnail.to_string(),
             about: about.to_owned(),
+            episode_links: episode_links.to_owned()
         }
     }
 }
@@ -250,16 +252,16 @@ impl GogoAnime {
         let anime_name_selector_str = "h1";
         let p_selector_str = "p.type";
         let description_selector_str = ".description";
-        // let total_eps_selector_str = ".active";
-        // let movie_id_selector_str = "input#movie_id";
+        let total_eps_selector_str = ".active";
+        let movie_id_selector_str = "input#movie_id";
 
         let anime_info_body_selector = Selector::parse(anime_info_body_selector_str).unwrap();
         let anime_thumbnail_selector = Selector::parse(anime_thumbnail_selector_str).unwrap();
         let anime_name_selector = Selector::parse(anime_name_selector_str).unwrap();
         let p_selector = Selector::parse(p_selector_str).unwrap();
         let description_selector = Selector::parse(description_selector_str).unwrap();
-        // let total_eps_selector = Selector::parse(total_eps_selector_str).unwrap();
-        // let movie_id_selector = Selector::parse(movie_id_selector_str).unwrap();
+        let end_ep_selector = Selector::parse(total_eps_selector_str).unwrap();
+        let movie_id_selector = Selector::parse(movie_id_selector_str).unwrap();
 
         let failed_to_locate_msg = |target: &str, selector: &str| -> String {
             format!(
@@ -298,10 +300,6 @@ impl GogoAnime {
                     .attach_printable(failed_to_locate_msg("anime title", anime_name_selector_str))
             })?
             .inner_html();
-        // let total_eps = document.select(&total_eps_selector).next().ok_or_else(|| {
-        //     Report::new(GogoFetchingDetailsFailed)
-        //         .attach_printable(failed_to_locate_msg("total eps", total_eps_selector_str))
-        // })?.attr("ep_end").unwrap().to_string();
         let mut about_anime: HashMap<String, String> = HashMap::new();
 
         for p_tag in anime_info_body.select(&p_selector) {
@@ -332,30 +330,31 @@ impl GogoAnime {
 
             about_anime.insert(key, value);
         }
+        let end_ep = document.select(&end_ep_selector).next().ok_or_else(|| {
+            Report::new(GogoFetchingDetailsFailed)
+                .attach_printable(failed_to_locate_msg("total eps", total_eps_selector_str))
+        })?.attr("ep_end").unwrap();
+        let anime_id = document.select(&movie_id_selector).next().unwrap().attr("value").unwrap();
+        let episode_links = self.fetch_anime_ep_links(anime_id, end_ep).await.change_context(GogoFetchingDetailsFailed)?;
 
-        Ok(AnimeDetailedInfo::new(&title, &thumbnail_url, &about_anime))
+        Ok(AnimeDetailedInfo::new(&title, &thumbnail_url, &about_anime, &episode_links))
     }
-}
+    async fn fetch_anime_ep_links(&self, anime_id: &str, end_ep: &str) -> Result<Vec<String>, Report<Error>>{
+        let url = self.fetch_ep_list_api.replace("{END_EP}", end_ep).replace("{ANIME_ID}", anime_id);
+        let page_content = self
+            .get_content(&url)
+            .await?;
+        let document = Html::parse_document(&page_content);
+        let episodes_selector = Selector::parse("#episode_related").unwrap();
+        let mut episodes = Vec::new();
+        for li in document.select(&episodes_selector).next().unwrap().select(&Selector::parse("li").unwrap()).collect::<Vec<_>>().iter().rev(){
+            let url = format!("{}{}", self.gogo_base_url, li.select(&Selector::parse("a").unwrap()).next().unwrap().value().attr("href").unwrap().trim());
+            episodes.push(url);
 
-fn format_str<S: AsRef<str> + std::fmt::Display>(mut text: &str, args: &Vec<S>) -> String {
-    let mut new = String::new();
-    let mut idx = 0;
-    loop {
-        if let Some(index) = text.find("{}") {
-            if idx >= args.len() {
-                new.push_str(text);
-                break;
-            }
-            let before = &text[..index];
-            let after = &text[index + 2..];
-            new.push_str(&format!("{}{}", before, args[idx]));
-            text = after;
-        } else {
-            break;
         }
-        idx += 1;
+
+        Ok(episodes)
     }
-    new
 }
 
 fn cookie_in(header_value: &HeaderValue, cookie_name: &str) -> bool {
