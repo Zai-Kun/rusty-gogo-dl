@@ -33,3 +33,15 @@ impl fmt::Display for GogoFetchingDetailsFailed {
 }
 
 impl Context for GogoFetchingDetailsFailed {}
+
+
+#[derive(Debug)]
+pub struct GogoFailedToFetchDownloadLinks;
+
+impl fmt::Display for GogoFailedToFetchDownloadLinks {
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt.write_str("Failed to fetch download links for the episode")
+    }
+}
+
+impl Context for GogoFailedToFetchDownloadLinks {}

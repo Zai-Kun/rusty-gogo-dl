@@ -355,6 +355,28 @@ impl GogoAnime {
 
         Ok(episodes)
     }
+    pub async fn fetch_ep_download_links(&self, anime_url: &str) -> Result<HashMap<String, String>, Report<GogoFailedToFetchDownloadLinks>>{
+        let page_content = self
+            .fetch_content(anime_url)
+            .await
+            .change_context(GogoFailedToFetchDownloadLinks)?;
+        let document = Html::parse_document(&page_content);
+        let cf_download_selector_str = ".cf-download";
+        let cf_download_selector = Selector::parse(cf_download_selector_str).unwrap();
+        let cf_download = document.select(&cf_download_selector).next().ok_or_else(||
+            Report::new(GogoFailedToFetchDownloadLinks).attach_printable(format!("Download links not find using {} from {}", cf_download_selector_str, anime_url)).attach_printable("Did you initalize gogoanime?")
+        )?;
+
+        let mut download_links = HashMap::new();
+        for a in cf_download.select(&Selector::parse("a").unwrap()){
+            let res = a.text().collect::<Vec<_>>().concat().trim().to_string();
+            let link = a.value().attr("href").unwrap().to_string();
+
+            download_links.insert(res, link);
+        }
+        
+        Ok(download_links)
+    }
 }
 
 fn cookie_in(header_value: &HeaderValue, cookie_name: &str) -> bool {
