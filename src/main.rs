@@ -68,3 +68,5 @@ fn parse_and_load_config() -> Result<Config, Report<ParseConfigError>> {
         ))?;
     Ok(config)
 }
+
+// added comment through gitpod
