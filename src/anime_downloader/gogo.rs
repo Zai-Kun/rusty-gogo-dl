@@ -41,12 +41,17 @@ pub struct AnimeDetailedInfo {
 }
 
 impl AnimeDetailedInfo {
-    fn new(name: &str, thumbnail: &str, about: &HashMap<String, String>, episode_links: &Vec<String>) -> Self {
+    fn new(
+        name: &str,
+        thumbnail: &str,
+        about: &HashMap<String, String>,
+        episode_links: &Vec<String>,
+    ) -> Self {
         Self {
             name: name.to_string(),
             thumbnail: thumbnail.to_string(),
             about: about.to_owned(),
-            episode_links: episode_links.to_owned()
+            episode_links: episode_links.to_owned(),
         }
     }
 }
@@ -330,32 +335,75 @@ impl GogoAnime {
 
             about_anime.insert(key, value);
         }
-        let end_ep = document.select(&end_ep_selector).next().ok_or_else(|| {
-            Report::new(GogoFetchingDetailsFailed)
-                .attach_printable(failed_to_locate_msg("total eps", total_eps_selector_str))
-        })?.attr("ep_end").unwrap();
-        let anime_id = document.select(&movie_id_selector).next().unwrap().attr("value").unwrap();
-        let episode_links = self.fetch_anime_ep_links(anime_id, end_ep).await.change_context(GogoFetchingDetailsFailed)?;
+        let end_ep = document
+            .select(&end_ep_selector)
+            .next()
+            .ok_or_else(|| {
+                Report::new(GogoFetchingDetailsFailed)
+                    .attach_printable(failed_to_locate_msg("total eps", total_eps_selector_str))
+            })?
+            .attr("ep_end")
+            .unwrap();
+        let anime_id = document
+            .select(&movie_id_selector)
+            .next()
+            .unwrap()
+            .attr("value")
+            .unwrap();
+        let episode_links = self
+            .fetch_anime_ep_links(anime_id, end_ep)
+            .await
+            .change_context(GogoFetchingDetailsFailed)?;
 
-        Ok(AnimeDetailedInfo::new(&title, &thumbnail_url, &about_anime, &episode_links))
+        Ok(AnimeDetailedInfo::new(
+            &title,
+            &thumbnail_url,
+            &about_anime,
+            &episode_links,
+        ))
     }
-    async fn fetch_anime_ep_links(&self, anime_id: &str, end_ep: &str) -> Result<Vec<String>, Report<Error>>{
-        let url = self.fetch_ep_list_api.replace("{END_EP}", end_ep).replace("{ANIME_ID}", anime_id);
-        let page_content = self
-            .fetch_content(&url)
-            .await?;
+    async fn fetch_anime_ep_links(
+        &self,
+        anime_id: &str,
+        end_ep: &str,
+    ) -> Result<Vec<String>, Report<Error>> {
+        let url = self
+            .fetch_ep_list_api
+            .replace("{END_EP}", end_ep)
+            .replace("{ANIME_ID}", anime_id);
+        let page_content = self.fetch_content(&url).await?;
         let document = Html::parse_document(&page_content);
         let episodes_selector = Selector::parse("#episode_related").unwrap();
         let mut episodes = Vec::new();
-        for li in document.select(&episodes_selector).next().unwrap().select(&Selector::parse("li").unwrap()).collect::<Vec<_>>().iter().rev(){
-            let url = format!("{}{}", self.gogo_base_url, li.select(&Selector::parse("a").unwrap()).next().unwrap().value().attr("href").unwrap().trim());
+        for li in document
+            .select(&episodes_selector)
+            .next()
+            .unwrap()
+            .select(&Selector::parse("li").unwrap())
+            .collect::<Vec<_>>()
+            .iter()
+            .rev()
+        {
+            let url = format!(
+                "{}{}",
+                self.gogo_base_url,
+                li.select(&Selector::parse("a").unwrap())
+                    .next()
+                    .unwrap()
+                    .value()
+                    .attr("href")
+                    .unwrap()
+                    .trim()
+            );
             episodes.push(url);
-
         }
 
         Ok(episodes)
     }
-    pub async fn fetch_ep_download_links(&self, anime_url: &str) -> Result<HashMap<String, String>, Report<GogoFailedToFetchDownloadLinks>>{
+    pub async fn fetch_ep_download_links(
+        &self,
+        anime_url: &str,
+    ) -> Result<HashMap<String, String>, Report<GogoFailedToFetchDownloadLinks>> {
         let page_content = self
             .fetch_content(anime_url)
             .await
@@ -363,18 +411,26 @@ impl GogoAnime {
         let document = Html::parse_document(&page_content);
         let cf_download_selector_str = ".cf-download";
         let cf_download_selector = Selector::parse(cf_download_selector_str).unwrap();
-        let cf_download = document.select(&cf_download_selector).next().ok_or_else(||
-            Report::new(GogoFailedToFetchDownloadLinks).attach_printable(format!("Download links not find using {} from {}", cf_download_selector_str, anime_url)).attach_printable("Did you initalize gogoanime?")
-        )?;
+        let cf_download = document
+            .select(&cf_download_selector)
+            .next()
+            .ok_or_else(|| {
+                Report::new(GogoFailedToFetchDownloadLinks)
+                    .attach_printable(format!(
+                        "Download links not find using {} from {}",
+                        cf_download_selector_str, anime_url
+                    ))
+                    .attach_printable("Did you initalize gogoanime?")
+            })?;
 
         let mut download_links = HashMap::new();
-        for a in cf_download.select(&Selector::parse("a").unwrap()){
+        for a in cf_download.select(&Selector::parse("a").unwrap()) {
             let res = a.text().collect::<Vec<_>>().concat().trim().to_string();
             let link = a.value().attr("href").unwrap().to_string();
 
             download_links.insert(res, link);
         }
-        
+
         Ok(download_links)
     }
 }

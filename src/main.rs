@@ -39,7 +39,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let anime = &gogo_anime.search_anime("death note").await?[0];
     println!(
         "{:?}",
-        gogo_anime.fetch_ep_download_links(&gogo_anime.fetch_detailed_anime_info(&anime.url).await?.episode_links[0]).await?
+        gogo_anime
+            .fetch_ep_download_links(
+                &gogo_anime
+                    .fetch_detailed_anime_info(&anime.url)
+                    .await?
+                    .episode_links[0]
+            )
+            .await?
     );
     Ok(())
 }

@@ -34,7 +34,6 @@ impl fmt::Display for GogoFetchingDetailsFailed {
 
 impl Context for GogoFetchingDetailsFailed {}
 
-
 #[derive(Debug)]
 pub struct GogoFailedToFetchDownloadLinks;
 
