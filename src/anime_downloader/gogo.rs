@@ -15,10 +15,10 @@ use urlencoding::encode;
 
 #[derive(Debug)]
 pub struct Anime {
-    name: String,
-    released: String,
-    thumbnail: String,
-    url: String,
+    pub name: String,
+    pub released: String,
+    pub thumbnail: String,
+    pub url: String,
 }
 
 impl Anime {
@@ -28,6 +28,23 @@ impl Anime {
             released: released.to_string(),
             thumbnail: thumbnail.to_string(),
             url: url.to_string(),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct AnimeDetailedInfo {
+    pub name: String,
+    pub thumbnail: String,
+    pub about: HashMap<String, String>,
+}
+
+impl AnimeDetailedInfo {
+    fn new(name: &str, thumbnail: &str, about: &HashMap<String, String>) -> Self {
+        Self {
+            name: name.to_string(),
+            thumbnail: thumbnail.to_string(),
+            about: about.to_owned(),
         }
     }
 }
@@ -216,6 +233,107 @@ impl GogoAnime {
         let response = self.client.get(url).send().await?;
 
         Ok(response.text().await?)
+    }
+
+    pub async fn fetch_detailed_anime_info(
+        &self,
+        anime_url: &str,
+    ) -> Result<AnimeDetailedInfo, Report<GogoFetchingDetailsFailed>> {
+        let page_content = self
+            .get_content(anime_url)
+            .await
+            .change_context(GogoFetchingDetailsFailed)?;
+        let document = Html::parse_document(&page_content);
+
+        let anime_info_body_selector_str = "div.anime_info_body";
+        let anime_thumbnail_selector_str = "img";
+        let anime_name_selector_str = "h1";
+        let p_selector_str = "p.type";
+        let description_selector_str = ".description";
+        // let total_eps_selector_str = ".active";
+        // let movie_id_selector_str = "input#movie_id";
+
+        let anime_info_body_selector = Selector::parse(anime_info_body_selector_str).unwrap();
+        let anime_thumbnail_selector = Selector::parse(anime_thumbnail_selector_str).unwrap();
+        let anime_name_selector = Selector::parse(anime_name_selector_str).unwrap();
+        let p_selector = Selector::parse(p_selector_str).unwrap();
+        let description_selector = Selector::parse(description_selector_str).unwrap();
+        // let total_eps_selector = Selector::parse(total_eps_selector_str).unwrap();
+        // let movie_id_selector = Selector::parse(movie_id_selector_str).unwrap();
+
+        let failed_to_locate_msg = |target: &str, selector: &str| -> String {
+            format!(
+                "Failed to locate {} with {} from {}",
+                target, selector, anime_url
+            )
+        };
+        let anime_info_body = document
+            .select(&anime_info_body_selector)
+            .next()
+            .ok_or_else(|| {
+                Report::new(GogoFetchingDetailsFailed).attach_printable(failed_to_locate_msg(
+                    "anime_info_body",
+                    anime_info_body_selector_str,
+                ))
+            })?;
+
+        let thumbnail_url = anime_info_body
+            .select(&anime_thumbnail_selector)
+            .next()
+            .ok_or_else(|| {
+                Report::new(GogoFetchingDetailsFailed).attach_printable(failed_to_locate_msg(
+                    "thumbnail_url",
+                    anime_thumbnail_selector_str,
+                ))
+            })?
+            .value()
+            .attr("src")
+            .unwrap()
+            .to_string();
+        let title = anime_info_body
+            .select(&anime_name_selector)
+            .next()
+            .ok_or_else(|| {
+                Report::new(GogoFetchingDetailsFailed)
+                    .attach_printable(failed_to_locate_msg("anime title", anime_name_selector_str))
+            })?
+            .inner_html();
+        // let total_eps = document.select(&total_eps_selector).next().ok_or_else(|| {
+        //     Report::new(GogoFetchingDetailsFailed)
+        //         .attach_printable(failed_to_locate_msg("total eps", total_eps_selector_str))
+        // })?.attr("ep_end").unwrap().to_string();
+        let mut about_anime: HashMap<String, String> = HashMap::new();
+
+        for p_tag in anime_info_body.select(&p_selector) {
+            let raw_text = p_tag.text().collect::<Vec<_>>().concat().to_string();
+
+            let (key, value) = raw_text.split_once(":").unwrap();
+            let (key, mut value) = (
+                key.to_lowercase().replace(" ", "_").to_string(),
+                value.trim().to_string(),
+            );
+
+            if key == "plot_summary" {
+                let raw_desc = anime_info_body
+                    .select(&description_selector)
+                    .next()
+                    .ok_or_else(|| {
+                        Report::new(GogoFetchingDetailsFailed).attach_printable(
+                            failed_to_locate_msg("description", &description_selector_str),
+                        )
+                    })?;
+                value = raw_desc
+                    .text()
+                    .collect::<Vec<_>>()
+                    .concat()
+                    .replace("\n\n ", "\n\n")
+                    .to_string();
+            }
+
+            about_anime.insert(key, value);
+        }
+
+        Ok(AnimeDetailedInfo::new(&title, &thumbnail_url, &about_anime))
     }
 }
 

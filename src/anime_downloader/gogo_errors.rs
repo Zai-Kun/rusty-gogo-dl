@@ -22,3 +22,14 @@ impl fmt::Display for GogoSearchFailedError {
 }
 
 impl Context for GogoSearchFailedError {}
+
+#[derive(Debug)]
+pub struct GogoFetchingDetailsFailed;
+
+impl fmt::Display for GogoFetchingDetailsFailed {
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt.write_str("Failed to fetch anime details")
+    }
+}
+
+impl Context for GogoFetchingDetailsFailed {}

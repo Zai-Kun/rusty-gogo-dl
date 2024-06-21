@@ -36,7 +36,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
         config.registered_account_emails,
     );
     gogo_anime.init().await?;
-    println!("{:?}", gogo_anime.search_anime("death note").await?);
+    let anime = &gogo_anime.search_anime("death note").await?[0];
+    println!(
+        "{:?}",
+        gogo_anime.fetch_detailed_anime_info(&anime.url).await?
+    );
     Ok(())
 }
 
