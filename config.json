@@ -1,6 +1,6 @@
 {
     "gogo_base_url": "https://anitaku.so",
-    "fetch_ep_list_api": "https://ajax.gogocdn.net/ajax/load-list-episode?ep_start=0&ep_end={EP_END}&id={ANIME_ID}",
+    "fetch_ep_list_api": "https://ajax.gogocdn.net/ajax/load-list-episode?ep_start=0&ep_end={END_EP}&id={ANIME_ID}",
     "registered_account_emails": [
         "benida7218@weirby.com",
         "hareki4411@wisnick.com",
@@ -23,5 +23,8 @@
         "xojecog864@undewp.com",
         "lobik97135@wanbeiz.com"
     ],
-    "password": "amogus69420"
+    "password": "amogus69420",
+    "preferred_res": "854x480",
+    "concurrent_downloads": 2,
+    "download_folder": "/tmp"
 }

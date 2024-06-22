@@ -9,6 +9,7 @@ use reqwest::header::HeaderValue;
 use reqwest::{self, Error};
 use scraper::selectable::Selectable;
 use scraper::{Html, Selector};
+use std::fmt;
 use std::{collections::HashMap, sync::Arc};
 use url::Url;
 use urlencoding::encode;
@@ -19,6 +20,12 @@ pub struct Anime {
     pub released: String,
     pub thumbnail: String,
     pub url: String,
+}
+
+impl fmt::Display for Anime {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.name)
+    }
 }
 
 impl Anime {
@@ -38,6 +45,18 @@ pub struct AnimeDetailedInfo {
     pub thumbnail: String,
     pub about: HashMap<String, String>,
     pub episode_links: Vec<String>,
+}
+
+impl fmt::Display for AnimeDetailedInfo {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        writeln!(f, "Name: {}", self.name)?;
+        writeln!(f, "Thumbnail: {}", self.thumbnail)?;
+        writeln!(f, "About:")?;
+        for (key, value) in &self.about {
+            writeln!(f, "  {}: {}", key, value)?;
+        }
+        writeln!(f, "Number of episodes: {}", self.episode_links.len())
+    }
 }
 
 impl AnimeDetailedInfo {
