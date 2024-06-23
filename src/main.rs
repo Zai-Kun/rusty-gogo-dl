@@ -15,11 +15,15 @@ use std::collections::HashMap;
 use std::fmt;
 use std::fs::File;
 use std::io::Read;
+use std::io::Write;
 use std::path::Path;
 use std::sync::Arc;
 use std::{error::Error, path::PathBuf};
 
 use console::{Emoji, Term};
+
+const LINK_TO_CONFIG: &str =
+    "https://raw.githubusercontent.com/Zai-Kun/rusty-gogo-dl/master/config.json";
 
 #[derive(Debug)]
 struct ParseConfigError;
@@ -31,6 +35,17 @@ impl fmt::Display for ParseConfigError {
 }
 
 impl Context for ParseConfigError {}
+
+#[derive(Debug)]
+struct ConfigDownloadError;
+
+impl fmt::Display for ConfigDownloadError {
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt.write_str("Failed to download the config file")
+    }
+}
+
+impl Context for ConfigDownloadError {}
 
 #[derive(serde::Deserialize, Debug)]
 struct Config {
@@ -48,7 +63,7 @@ struct Config {
 async fn main() -> Result<(), Box<dyn Error>> {
     clear_screen();
     inquire::set_global_render_config(get_render_config());
-    let config = parse_and_load_config()?;
+    let config = parse_and_load_config().await?;
     let gogo_anime = Arc::new(GogoAnime::new(
         &config.gogo_base_url,
         &config.fetch_ep_list_api,
@@ -213,8 +228,28 @@ fn get_ep_start_and_ep_end(anime: &AnimeDetailedInfo) -> (usize, usize) {
     (ep_start, ep_end)
 }
 
-fn parse_and_load_config() -> Result<Config, Report<ParseConfigError>> {
+async fn download_and_save_config() -> Result<(), Report<ConfigDownloadError>> {
+    let response = reqwest::get(LINK_TO_CONFIG)
+        .await
+        .change_context(ConfigDownloadError)?;
+
+    let contents = response.text().await.change_context(ConfigDownloadError)?;
+
+    let mut file = File::create("config.json").change_context(ConfigDownloadError)?;
+
+    file.write_all(contents.as_bytes())
+        .change_context(ConfigDownloadError)?;
+
+    Ok(())
+}
+
+async fn parse_and_load_config() -> Result<Config, Report<ParseConfigError>> {
     let config_path = Path::new("config.json");
+    if !config_path.exists() {
+        download_and_save_config()
+            .await
+            .change_context(ParseConfigError)?;
+    }
     let mut config_file = File::open(config_path)
         .change_context(ParseConfigError)
         .attach_printable_lazy(|| {

@@ -108,25 +108,33 @@ async fn gogo_downloader_task(
         let download_links = match gogo_anime
             .fetch_ep_download_links(&ep_url)
             .await
-            .change_context(DownloadError){
-                Ok(ok) => ok,
-                Err(_) if retries > 0 => {
-                    retries -= 1;
-                    continue;
-                }
-                Err(err) => return Err(err)
-            };
+            .change_context(DownloadError)
+        {
+            Ok(ok) => ok,
+            Err(_) if retries > 0 => {
+                retries -= 1;
+                continue;
+            }
+            Err(err) => return Err(err),
+        };
         let resolutions: Vec<&String> = download_links.keys().collect();
         let closest_res = utils::closest_resolution(&resolutions[..], &pref_res);
-        match file_downloader_task(&client, &download_links.get(&closest_res).unwrap().to_string(), &ep_path, &pb).await {
+        match file_downloader_task(
+            &client,
+            &download_links.get(&closest_res).unwrap().to_string(),
+            &ep_path,
+            &pb,
+        )
+        .await
+        {
             Ok(_) => break,
             Err(_) if retries > 0 => {
                 retries -= 1;
                 continue;
             }
-            Err(err) => return Err(err)
+            Err(err) => return Err(err),
         };
-    };
+    }
     Ok(())
 }
 
