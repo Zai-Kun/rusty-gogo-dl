@@ -40,26 +40,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "anime-downloader"
-version = "0.1.0"
-dependencies = [
- "console",
- "error-stack",
- "indicatif",
- "inquire",
- "rand",
- "reqwest",
- "sanitize-filename",
- "scraper",
- "serde",
- "serde_json",
- "tokio",
- "tokio-stream",
- "url",
- "urlencoding",
-]
-
-[[package]]
 name = "anyhow"
 version = "1.0.86"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1414,6 +1394,26 @@ name = "rustls-pki-types"
 version = "1.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "976295e77ce332211c0d24d92c0e83e50f5c5f046d11082cea19f3df13a3562d"
+
+[[package]]
+name = "rusty-gogo-dl"
+version = "1.0.0"
+dependencies = [
+ "console",
+ "error-stack",
+ "indicatif",
+ "inquire",
+ "rand",
+ "reqwest",
+ "sanitize-filename",
+ "scraper",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tokio-stream",
+ "url",
+ "urlencoding",
+]
 
 [[package]]
 name = "ryu"
