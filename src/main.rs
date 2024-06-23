@@ -3,7 +3,6 @@ mod download_manager;
 mod utils;
 
 use anime_downloader::gogo::{AnimeDetailedInfo, GogoAnime};
-use anime_downloader::gogo_errors::GogoFailedToFetchDownloadLinks;
 use console::style;
 use download_manager::{ConcurrentDownloadManager, DownloadError};
 use error_stack::{Context, Report, ResultExt};
@@ -19,7 +18,6 @@ use std::io::Read;
 use std::path::Path;
 use std::sync::Arc;
 use std::{error::Error, path::PathBuf};
-use tokio::task::spawn;
 
 use console::{Emoji, Term};
 
@@ -43,6 +41,7 @@ struct Config {
     preferred_res: String,
     concurrent_downloads: usize,
     download_folder: PathBuf,
+    retries: usize,
 }
 
 #[tokio::main]
@@ -79,10 +78,12 @@ async fn main() -> Result<(), Box<dyn Error>> {
         clear_screen();
         print_details(&detailed_anime_info);
 
-        let ans = Confirm::new(&make_bold("Do you want to download episodes from this anime?"))
-            .with_default(true)
-            .prompt()
-            .unwrap();
+        let ans = Confirm::new(&make_bold(
+            "Do you want to download episodes from this anime?",
+        ))
+        .with_default(true)
+        .prompt()
+        .unwrap();
         if !ans {
             continue;
         }
@@ -90,25 +91,21 @@ async fn main() -> Result<(), Box<dyn Error>> {
         let (start, end) = get_ep_start_and_ep_end(&detailed_anime_info);
         let eps_to_download = &detailed_anime_info.episode_links[start - 1..end];
 
-        let mut download_manager = ConcurrentDownloadManager::new(config.concurrent_downloads);
+        let mut download_manager =
+            ConcurrentDownloadManager::new(config.concurrent_downloads, config.retries);
 
-        let mut tasks = Vec::new();
-        for ep_link in eps_to_download {
-            tasks.push(spawn(fetch_and_filter_episode_download_link(
-                gogo_anime.clone(),
-                config.preferred_res.clone(),
-                ep_link.clone(),
-            )));
-        }
-
-        for (idx, task) in tasks.iter_mut().enumerate() {
-            let download_link = task.await.unwrap()?;
-            let file_path = utils::combine_path(
+        for (idx, link) in eps_to_download.iter().enumerate() {
+            let ep_path = utils::combine_path(
                 &config.download_folder,
                 &detailed_anime_info.name,
                 &eps_to_download[idx],
+            ) + ".mp4";
+            download_manager.add_gogo_download(
+                gogo_anime.clone(),
+                &config.preferred_res,
+                &ep_path,
+                link,
             );
-            download_manager.add_download(&download_link, &file_path);
         }
 
         print_stats(download_manager.await_results().await);
@@ -156,18 +153,6 @@ fn print_stats(results: HashMap<String, Result<(), Report<DownloadError>>>) {
     );
 }
 
-async fn fetch_and_filter_episode_download_link(
-    gogo: Arc<GogoAnime>,
-    pref_res: String,
-    ep_link: String,
-) -> Result<String, Report<GogoFailedToFetchDownloadLinks>> {
-    let download_links = gogo.fetch_ep_download_links(&ep_link).await?;
-    let resolutions: Vec<&String> = download_links.keys().collect();
-    let closest_res = utils::closest_resolution(&resolutions[..], &pref_res);
-
-    Ok(download_links.get(&closest_res).unwrap().to_string())
-}
-
 fn print_details(anime: &AnimeDetailedInfo) {
     println!("{}{}", make_bold("Name: "), anime.name);
     println!("{}{}", make_bold("Thumbnail: "), anime.thumbnail);
@@ -184,7 +169,7 @@ fn print_details(anime: &AnimeDetailedInfo) {
 
 fn get_ep_start_and_ep_end(anime: &AnimeDetailedInfo) -> (usize, usize) {
     let eps_len = anime.episode_links.len();
-    let ep_start: usize = CustomType::new(&make_bold("Ending episode index:"))
+    let ep_start: usize = CustomType::new(&make_bold("Starting episode index:"))
         .with_default(1)
         .with_help_message("Enter the starting index from which to begin downloading episodes.")
         .with_validator(move |i: &usize| {

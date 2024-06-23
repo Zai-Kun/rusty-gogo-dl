@@ -26,5 +26,6 @@
     "password": "amogus69420",
     "preferred_res": "1280x720",
     "concurrent_downloads": 2,
-    "download_folder": "downloaded_anime"
+    "download_folder": "downloaded_anime",
+    "retries": 3
 }
