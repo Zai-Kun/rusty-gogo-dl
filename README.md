@@ -17,9 +17,17 @@
 
 ## Installation
 
+### Download Binaries
+
+For Windows and Linux there are pre-compiled binaries. Download them from the [Releases](https://github.com/Zai-Kun/rusty-gogo-dl/releases) page.
+
+### Build From Source
+
+If you are using some other OS, you'll have to compile the binary yourself.
+
 1. Clone the repository:
     ```sh
-    git https://github.com/Zai-Kun/rusty-gogo-dl
+    git clone https://github.com/Zai-Kun/rusty-gogo-dl
     ```
 2. Navigate to the project directory:
     ```sh
@@ -29,6 +37,8 @@
     ```sh
     cargo build --release
     ```
+
+The compiled binary should be in the `./target/release` folder.
 
 ## Usage
 It's pretty easy to use. Just try it out and you'll see how it works.
