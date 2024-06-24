@@ -13,6 +13,7 @@
 - **Complete Season or Episode Range**: Download a full season or select specific episodes (e.g., episodes 5-12).
 - **Concurrent Downloads**: Download multiple episodes simultaneously to save time.
 - **Fast and Lightweight**: Enjoy a speedy and small-sized application with a beautiful, interactive CLI interface.
+- **Resume downloads**: If your download fails midway, don't worry, just install that episode(s) again and it will resume from where it left off.
 
 ## Installation
 
